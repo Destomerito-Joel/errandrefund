@@ -1,0 +1,21 @@
+import cors from 'cors';
+import express from 'express';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import { env } from './config/env.js';
+import { health } from './controllers/healthController.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import { adminRoutes } from './routes/adminRoutes.js';
+import { refundRoutes } from './routes/refundRoutes.js';
+
+export const app = express();
+app.disable('x-powered-by');
+app.use(helmet());
+app.use(cors({ origin: env.CORS_ORIGIN.split(',').map((origin) => origin.trim()), methods: ['GET', 'POST'], allowedHeaders: ['Content-Type', 'Authorization'] }));
+app.use(express.json({ limit: '16kb' }));
+app.use(rateLimit({ windowMs: env.RATE_LIMIT_WINDOW_MS, limit: env.RATE_LIMIT_MAX, standardHeaders: 'draft-7', legacyHeaders: false }));
+app.get('/api/health', health);
+app.use('/api/refunds', refundRoutes);
+app.use('/api/admin', adminRoutes);
+app.use((_request, response) => response.status(404).json({ error: 'Not found' }));
+app.use(errorHandler);

@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Decision {
+  APPROVED
+  DENIED
+  ESCALATED
+}
+
+enum RequestStatus {
+  OPEN
+  RESOLVED
+}
+
+enum OrderStatus {
+  DELIVERED
+  REFUNDED
+  CANCELLED
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  customerId  String
+  customer    Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderNumber String      @unique
+  items       Json
+  total       Decimal     @db.Decimal(10, 2)
+  deliveredAt DateTime
+  finalSale   Boolean     @default(false)
+  status      OrderStatus @default(DELIVERED)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([customerId, deliveredAt])
+}
+
+model RefundRequest {
+  id           String        @id @default(cuid())
+  customerEmail String
+  orderNumber  String?
+  message      String
+  decision     Decision
+  reasonCodes  String[]
+  aiReply      String
+  flagged      Boolean       @default(false)
+  status       RequestStatus @default(OPEN)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  auditLogs    AuditLog[]
+
+  @@index([decision, createdAt])
+  @@index([customerEmail, createdAt])
+}
+
+model AuditLog {
+  id              String        @id @default(cuid())
+  refundRequestId String
+  refundRequest   RefundRequest @relation(fields: [refundRequestId], references: [id], onDelete: Cascade)
+  steps           Json
+  createdAt       DateTime      @default(now())
+
+  @@index([refundRequestId, createdAt])
+}
